@@ -1372,13 +1372,25 @@ if result:
                     st.warning(
                         f"Unsupported chart type: {chart_type}"
                     )
+uploaded_file.seek(0)
+
 try:
     df_chart = pd.read_csv(
-        pd.io.common.BytesIO(file_bytes),
+        uploaded_file,
         encoding="utf-8"
     )
 except UnicodeDecodeError:
-    df_chart = pd.read_csv(
-        pd.io.common.BytesIO(file_bytes),
-        encoding="latin1"
-    )
+    uploaded_file.seek(0)
+
+    try:
+        df_chart = pd.read_csv(
+            uploaded_file,
+            encoding="cp1252"
+        )
+    except UnicodeDecodeError:
+        uploaded_file.seek(0)
+
+        df_chart = pd.read_csv(
+            uploaded_file,
+            encoding="latin1"
+        )

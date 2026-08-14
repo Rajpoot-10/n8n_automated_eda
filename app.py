@@ -712,7 +712,7 @@ if uploaded_file:
         ):
 
             try:
-
+                file_bytes = uploaded_file.getvalue()
                 files = {
                     "file": (
                         uploaded_file.name,
@@ -1372,3 +1372,13 @@ if result:
                     st.warning(
                         f"Unsupported chart type: {chart_type}"
                     )
+try:
+    df_chart = pd.read_csv(
+        pd.io.common.BytesIO(file_bytes),
+        encoding="utf-8"
+    )
+except UnicodeDecodeError:
+    df_chart = pd.read_csv(
+        pd.io.common.BytesIO(file_bytes),
+        encoding="latin1"
+    )

@@ -736,6 +736,7 @@ if uploaded_file:
                     st.stop()
 
                 result = response.json()
+                st.session_state["file_bytes"] = uploaded_file.getvalue()
 
                 # n8n should return a JSON object
                 if isinstance(result, list):
@@ -1372,25 +1373,21 @@ if result:
                     st.warning(
                         f"Unsupported chart type: {chart_type}"
                     )
-uploaded_file.seek(0)
+file_bytes = st.session_state.get("file_bytes")
+
+if file_bytes is None:
+    st.error("Original uploaded file is no longer available.")
+    st.stop()
 
 try:
     df_chart = pd.read_csv(
-        uploaded_file,
+        pd.io.common.BytesIO(file_bytes),
         encoding="utf-8"
     )
+
 except UnicodeDecodeError:
-    uploaded_file.seek(0)
 
-    try:
-        df_chart = pd.read_csv(
-            uploaded_file,
-            encoding="cp1252"
-        )
-    except UnicodeDecodeError:
-        uploaded_file.seek(0)
-
-        df_chart = pd.read_csv(
-            uploaded_file,
-            encoding="latin1"
-        )
+    df_chart = pd.read_csv(
+        pd.io.common.BytesIO(file_bytes),
+        encoding="latin1"
+    )

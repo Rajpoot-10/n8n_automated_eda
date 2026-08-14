@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
-N8N_WEBHOOK_URL = "https://exciting-pitch-code-indicates.trycloudflare.com"
+N8N_WEBHOOK_URL = "https://exciting-pitch-code-indicates.trycloudflare.com/webhook/auto-eda"
 
 
 # ============================================================

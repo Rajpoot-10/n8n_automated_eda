@@ -1,1 +1,7 @@
-streamlit>=1.40.0
+streamlit
+pandas
+requests
+plotly
+fastapi
+uvicorn
+python-multipart

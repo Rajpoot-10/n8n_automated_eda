@@ -1017,15 +1017,15 @@ if result:
     # TAB 5 — VISUALIZATIONS
     # ========================================================
 
-    with tab5:
+        with tab5:
 
-        st.subheader("Automated Visualizations")
+            st.subheader("Automated Visualizations")
 
-        charts = result.get("charts", [])
-          st.json(charts)
+            charts = result.get("charts", [])
+
+        st.json(charts)
 
         if not charts:
-
             st.warning("No charts were generated.")
 
         else:

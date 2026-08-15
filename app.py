@@ -721,11 +721,11 @@ if uploaded_file:
                     )
                 }
 
-                response = requests.post(
-                    N8N_WEBHOOK_URL,
-                    files=files,
-                    timeout=300
-                )
+                response = requests.post(N8N_WEBHOOK_URL, files=files)
+
+                print("STATUS:", response.status_code)
+                print("CONTENT TYPE:", response.headers.get("content-type"))
+                print("RESPONSE:", response.text)
 
                 if response.status_code != 200:
 

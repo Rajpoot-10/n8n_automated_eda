@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
-N8N_WEBHOOK_URL = "N8N_WEBHOOK_URL = "https://hitting-changelog-oldest-moses.trycloudflare.com/webhook/auto-eda"
+N8N_WEBHOOK_URL = "https://hitting-changelog-oldest-moses.trycloudflare.com/webhook/auto-eda"
 
 
 # ============================================================

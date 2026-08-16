@@ -1022,7 +1022,6 @@ if result:
         st.subheader("Automated Visualizations")
 
         charts = result.get("charts", [])
-       
 
         if not charts:
 
@@ -1036,8 +1035,11 @@ if result:
 
             # Read the original uploaded CSV
             uploaded_file.seek(0)
-
-            df_chart = pd.read_csv(uploaded_file)
+            try:
+                df_chart = pd.read_csv(uploaded_file, encoding="utf-8")
+            except UnicodeDecodeError:
+                uploaded_file.seek(0)
+                df_chart = pd.read_csv(uploaded_file, encoding="latin1")
 
             # ------------------------------------------------
             # Generate each chart
@@ -1374,4 +1376,3 @@ if result:
                     st.warning(
                         f"Unsupported chart type: {chart_type}"
                     )
-

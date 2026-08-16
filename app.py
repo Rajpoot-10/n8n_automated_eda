@@ -1022,7 +1022,7 @@ if result:
         st.subheader("Automated Visualizations")
 
         charts = result.get("charts", [])
-        st.json(charts)
+       
 
         if not charts:
 

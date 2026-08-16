@@ -1,3 +1,4 @@
+from charset_normalizer import from_bytes
 import streamlit as st
 import requests
 import pandas as pd
@@ -1034,345 +1035,348 @@ if result:
             )
 
             # Read the original uploaded CSV
-            uploaded_file.seek(0)
-            try:
-                df_chart = pd.read_csv(uploaded_file, encoding="utf-8")
-            except UnicodeDecodeError:
-                uploaded_file.seek(0)
-                df_chart = pd.read_csv(uploaded_file, encoding="latin1")
 
-            # ------------------------------------------------
-            # Generate each chart
-            # ------------------------------------------------
+    uploaded_file.seek(0)
+    raw_bytes = uploaded_file.read()
 
-            for chart in charts:
+    detected = from_bytes(raw_bytes).best()
+    encoding = detected.encoding if detected else "utf-8"
 
-                chart_type = chart.get("type")
+    uploaded_file.seek(0)
+    df_chart = pd.read_csv(uploaded_file, encoding=encoding)
 
-                # ====================================================
-                # Single-column chart types
-                # ====================================================
+    # ------------------------------------------------
+    # Generate each chart
+    # ------------------------------------------------
 
-                if chart_type in ("histogram", "boxplot", "bar", "line"):
+    for chart in charts:
 
-                    column = chart.get("column")
-                    title = chart.get(
-                        "title",
-                        f"{chart_type} — {column}"
+        chart_type = chart.get("type")
+
+        # ====================================================
+        # Single-column chart types
+        # ====================================================
+
+        if chart_type in ("histogram", "boxplot", "bar", "line"):
+
+            column = chart.get("column")
+            title = chart.get(
+                "title",
+                f"{chart_type} — {column}"
+            )
+
+            # Make sure the column exists
+            if not column or column not in df_chart.columns:
+
+                st.warning(
+                    f"Column '{column}' not found in dataset."
+                )
+
+                continue
+
+            # -------------------------------
+            # HISTOGRAM
+            # -------------------------------
+
+            if chart_type == "histogram":
+
+                values = pd.to_numeric(
+                    df_chart[column],
+                    errors="coerce"
+                ).dropna()
+
+                if values.empty:
+
+                    st.warning(
+                        f"No numeric data available for {column}."
                     )
 
-                    # Make sure the column exists
-                    if not column or column not in df_chart.columns:
+                    continue
 
-                        st.warning(
-                            f"Column '{column}' not found in dataset."
-                        )
+                fig = px.histogram(
+                    x=values,
+                    title=title,
+                    labels={
+                        "x": column
+                    }
+                )
 
-                        continue
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
 
-                    # -------------------------------
-                    # HISTOGRAM
-                    # -------------------------------
+            # -------------------------------
+            # BOXPLOT
+            # -------------------------------
 
-                    if chart_type == "histogram":
+            elif chart_type == "boxplot":
 
-                        values = pd.to_numeric(
-                            df_chart[column],
-                            errors="coerce"
-                        ).dropna()
+                values = pd.to_numeric(
+                    df_chart[column],
+                    errors="coerce"
+                ).dropna()
 
-                        if values.empty:
+                if values.empty:
 
-                            st.warning(
-                                f"No numeric data available for {column}."
-                            )
-
-                            continue
-
-                        fig = px.histogram(
-                            x=values,
-                            title=title,
-                            labels={
-                                "x": column
-                            }
-                        )
-
-                        st.plotly_chart(
-                            fig,
-                            use_container_width=True
-                        )
-
-                    # -------------------------------
-                    # BOXPLOT
-                    # -------------------------------
-
-                    elif chart_type == "boxplot":
-
-                        values = pd.to_numeric(
-                            df_chart[column],
-                            errors="coerce"
-                        ).dropna()
-
-                        if values.empty:
-
-                            st.warning(
-                                f"No numeric data available for {column}."
-                            )
-
-                            continue
-
-                        fig = px.box(
-                            y=values,
-                            title=title,
-                            labels={
-                                "y": column
-                            }
-                        )
-
-                        st.plotly_chart(
-                            fig,
-                            use_container_width=True
-                        )
-
-                    # -------------------------------
-                    # BAR CHART
-                    # -------------------------------
-
-                    elif chart_type == "bar":
-
-                        series = (
-                            df_chart[column]
-                            .dropna()
-                            .astype(str)
-                            .str.strip()
-                        )
-
-                        series = series[
-                            series != ""
-                        ]
-
-                        # ---------------------------------------
-                        # Handle multi-value categorical columns
-                        # such as country and listed_in
-                        # ---------------------------------------
-
-                        if column in [
-                            "country",
-                            "listed_in"
-                        ]:
-
-                            series = (
-                                series
-                                .str.split(",")
-                                .explode()
-                                .str.strip()
-                            )
-
-                            series = series[
-                                series != ""
-                            ]
-
-                        counts = (
-                            series
-                            .value_counts()
-                            .head(10)
-                            .reset_index()
-                        )
-
-                        counts.columns = [
-                            "Category",
-                            "Count"
-                        ]
-
-                        if counts.empty:
-
-                            st.warning(
-                                f"No categorical data available for {column}."
-                            )
-
-                            continue
-
-                        fig = px.bar(
-                            counts,
-                            x="Category",
-                            y="Count",
-                            title=title
-                        )
-
-                        fig.update_layout(
-                            xaxis_title=column,
-                            yaxis_title="Count"
-                        )
-
-                        st.plotly_chart(
-                            fig,
-                            use_container_width=True
-                        )
-
-                    # -------------------------------
-                    # LINE CHART
-                    # -------------------------------
-
-                    elif chart_type == "line":
-
-                        # -----------------------------------
-                        # Date/time column
-                        # -----------------------------------
-
-                        if column == "date_added":
-
-                            dates = pd.to_datetime(
-                                df_chart[column],
-                                errors="coerce"
-                            )
-
-                            date_counts = (
-                                dates
-                                .dropna()
-                                .dt.to_period("M")
-                                .value_counts()
-                                .sort_index()
-                            )
-
-                            line_df = pd.DataFrame({
-                                "Date": date_counts.index.astype(str),
-                                "Count": date_counts.values
-                            })
-
-                        # -----------------------------------
-                        # Numeric time-like column
-                        # -----------------------------------
-
-                        else:
-
-                            numeric = pd.to_numeric(
-                                df_chart[column],
-                                errors="coerce"
-                            )
-
-                            line_df = (
-                                numeric
-                                .dropna()
-                                .value_counts()
-                                .sort_index()
-                                .reset_index()
-                            )
-
-                            line_df.columns = [
-                                "Value",
-                                "Count"
-                            ]
-
-                        if line_df.empty:
-
-                            st.warning(
-                                f"No usable data available for {column}."
-                            )
-
-                            continue
-
-                        x_column = (
-                            "Date"
-                            if "Date" in line_df.columns
-                            else "Value"
-                        )
-
-                        fig = px.line(
-                            line_df,
-                            x=x_column,
-                            y="Count",
-                            title=title,
-                            markers=True
-                        )
-
-                        st.plotly_chart(
-                            fig,
-                            use_container_width=True
-                        )
-
-                # ====================================================
-                # SCATTER — two-column chart type (x, y)
-                # ====================================================
-
-                elif chart_type == "scatter":
-
-                    x_col = chart.get("x")
-                    y_col = chart.get("y")
-                    title = chart.get(
-                        "title",
-                        f"{x_col} vs {y_col}"
+                    st.warning(
+                        f"No numeric data available for {column}."
                     )
 
-                    x_values = chart.get("x_values", [])
-                    y_values = chart.get("y_values", [])
+                    continue
 
-                    if not x_values or not y_values:
+                fig = px.box(
+                    y=values,
+                    title=title,
+                    labels={
+                        "y": column
+                    }
+                )
 
-                        st.warning(
-                            f"No data available for {x_col} vs {y_col}."
-                        )
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
 
-                        continue
+            # -------------------------------
+            # BAR CHART
+            # -------------------------------
 
-                    fig = px.scatter(
-                        x=x_values,
-                        y=y_values,
-                        title=title,
-                        labels={
-                            "x": x_col,
-                            "y": y_col
-                        }
+            elif chart_type == "bar":
+
+                series = (
+                    df_chart[column]
+                    .dropna()
+                    .astype(str)
+                    .str.strip()
+                )
+
+                series = series[
+                    series != ""
+                ]
+
+                # ---------------------------------------
+                # Handle multi-value categorical columns
+                # such as country and listed_in
+                # ---------------------------------------
+
+                if column in [
+                    "country",
+                    "listed_in"
+                ]:
+
+                    series = (
+                        series
+                        .str.split(",")
+                        .explode()
+                        .str.strip()
                     )
 
-                    st.plotly_chart(
-                        fig,
-                        use_container_width=True
+                    series = series[
+                        series != ""
+                    ]
+
+                counts = (
+                    series
+                    .value_counts()
+                    .head(10)
+                    .reset_index()
+                )
+
+                counts.columns = [
+                    "Category",
+                    "Count"
+                ]
+
+                if counts.empty:
+
+                    st.warning(
+                        f"No categorical data available for {column}."
                     )
 
-                # ====================================================
-                # CORRELATION HEATMAP — multi-column chart type
-                # ====================================================
+                    continue
 
-                elif chart_type == "correlation_heatmap":
+                fig = px.bar(
+                    counts,
+                    x="Category",
+                    y="Count",
+                    title=title
+                )
 
-                    title = chart.get(
-                        "title",
-                        "Correlation Matrix"
+                fig.update_layout(
+                    xaxis_title=column,
+                    yaxis_title="Count"
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+            # -------------------------------
+            # LINE CHART
+            # -------------------------------
+
+            elif chart_type == "line":
+
+                # -----------------------------------
+                # Date/time column
+                # -----------------------------------
+
+                if column == "date_added":
+
+                    dates = pd.to_datetime(
+                        df_chart[column],
+                        errors="coerce"
                     )
 
-                    matrix = chart.get("matrix", [])
-                    labels = chart.get("labels", [])
-
-                    if not matrix or not labels:
-
-                        st.warning(
-                            "No correlation data available."
-                        )
-
-                        continue
-
-                    fig = px.imshow(
-                        matrix,
-                        x=labels,
-                        y=labels,
-                        text_auto=True,
-                        title=title,
-                        color_continuous_scale="RdBu_r",
-                        zmin=-1,
-                        zmax=1
+                    date_counts = (
+                        dates
+                        .dropna()
+                        .dt.to_period("M")
+                        .value_counts()
+                        .sort_index()
                     )
 
-                    st.plotly_chart(
-                        fig,
-                        use_container_width=True
-                    )
+                    line_df = pd.DataFrame({
+                        "Date": date_counts.index.astype(str),
+                        "Count": date_counts.values
+                    })
 
-                # ====================================================
-                # UNKNOWN CHART TYPE
-                # ====================================================
+                # -----------------------------------
+                # Numeric time-like column
+                # -----------------------------------
 
                 else:
 
-                    st.warning(
-                        f"Unsupported chart type: {chart_type}"
+                    numeric = pd.to_numeric(
+                        df_chart[column],
+                        errors="coerce"
                     )
+
+                    line_df = (
+                        numeric
+                        .dropna()
+                        .value_counts()
+                        .sort_index()
+                        .reset_index()
+                    )
+
+                    line_df.columns = [
+                        "Value",
+                        "Count"
+                    ]
+
+                if line_df.empty:
+
+                    st.warning(
+                        f"No usable data available for {column}."
+                    )
+
+                    continue
+
+                x_column = (
+                    "Date"
+                    if "Date" in line_df.columns
+                    else "Value"
+                )
+
+                fig = px.line(
+                    line_df,
+                    x=x_column,
+                    y="Count",
+                    title=title,
+                    markers=True
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+        # ====================================================
+        # SCATTER — two-column chart type (x, y)
+        # ====================================================
+
+        elif chart_type == "scatter":
+
+            x_col = chart.get("x")
+            y_col = chart.get("y")
+            title = chart.get(
+                "title",
+                f"{x_col} vs {y_col}"
+            )
+
+            x_values = chart.get("x_values", [])
+            y_values = chart.get("y_values", [])
+
+            if not x_values or not y_values:
+
+                st.warning(
+                    f"No data available for {x_col} vs {y_col}."
+                )
+
+                continue
+
+            fig = px.scatter(
+                x=x_values,
+                y=y_values,
+                title=title,
+                labels={
+                    "x": x_col,
+                    "y": y_col
+                }
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        # ====================================================
+        # CORRELATION HEATMAP — multi-column chart type
+        # ====================================================
+
+        elif chart_type == "correlation_heatmap":
+
+            title = chart.get(
+                "title",
+                "Correlation Matrix"
+            )
+
+            matrix = chart.get("matrix", [])
+            labels = chart.get("labels", [])
+
+            if not matrix or not labels:
+
+                st.warning(
+                    "No correlation data available."
+                )
+
+                continue
+
+            fig = px.imshow(
+                matrix,
+                x=labels,
+                y=labels,
+                text_auto=True,
+                title=title,
+                color_continuous_scale="RdBu_r",
+                zmin=-1,
+                zmax=1
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        # ====================================================
+        # UNKNOWN CHART TYPE
+        # ====================================================
+
+        else:
+
+            st.warning(
+                f"Unsupported chart type: {chart_type}"
+            )

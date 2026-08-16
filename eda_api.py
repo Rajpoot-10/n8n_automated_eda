@@ -233,8 +233,23 @@ def detect_type(series):
 def analyze_dataset(payload: DatasetPayload):
 
     try:
+        # ---- NEW: guard against oversized datasets ----
+        MAX_ROWS = 100_000
+        MAX_COLS = 200
+
+        if payload.row_count > MAX_ROWS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Dataset too large: {payload.row_count} rows (limit {MAX_ROWS})"
+            )
 
         df = pd.DataFrame(payload.data)
+
+        if df.shape[1] > MAX_COLS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Too many columns: {df.shape[1]} (limit {MAX_COLS})"
+            )
         df = df.loc[:, df.columns.str.strip() != ""]
         df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
 

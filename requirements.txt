@@ -5,3 +5,4 @@ plotly
 fastapi
 uvicorn
 python-multipart
+charset-normalizer

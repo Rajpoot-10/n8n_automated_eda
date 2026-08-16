@@ -235,6 +235,8 @@ def analyze_dataset(payload: DatasetPayload):
     try:
 
         df = pd.DataFrame(payload.data)
+        df = df.loc[:, df.columns.str.strip() != ""]
+        df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
 
         # ========================================
         # AUTOMATIC TYPE INFERENCE

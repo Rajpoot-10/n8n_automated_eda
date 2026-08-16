@@ -1374,21 +1374,4 @@ if result:
                     st.warning(
                         f"Unsupported chart type: {chart_type}"
                     )
-file_bytes = st.session_state.get("file_bytes")
 
-if file_bytes is None:
-    st.error("Original uploaded file is no longer available.")
-    st.stop()
-
-try:
-    df_chart = pd.read_csv(
-        pd.io.common.BytesIO(file_bytes),
-        encoding="utf-8"
-    )
-
-except UnicodeDecodeError:
-
-    df_chart = pd.read_csv(
-        pd.io.common.BytesIO(file_bytes),
-        encoding="latin1"
-    )
